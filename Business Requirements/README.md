@@ -1,129 +1,102 @@
-# Overview: U Cluj Defensive Performance Analysis
+# Overview: U Cluj Defensive Performance
 
-This project aims to improve U Cluj's defense by moving beyond basic stats like goals conceded. The goal is to understand the specific reasons why opponents create dangerous chances, helping the team identify their defensive weaknesses and make smarter tactical adjustments.
+In this project, I’m building an **Expected Threat (xT) model** to evaluate **U Cluj’s defensive performance**, inspired by the methodology introduced in [_Soccermatics_](https://soccermatics.readthedocs.io/en/latest/lesson4/EvaluatingActions.html). Using **Wyscout event data** from all matches, I wanted to go beyond basic defensive metrics (like goals conceded) and see **how opponent actions actually generate danger on the pitch**.
+
+For the MVP, I focused on delivering a first set of insights through **zone-based visualizations and metrics**:
+
+- **Movement Maps** → 2D histograms showing where opponent passes and carries happen most often.
+- **Shot & Goal Maps** → highlighting the pitch zones where opponents create shots and convert goals.
+- **Transition Zone Probabilities** → visualizations that show how opponents move the ball from midfield zones into threatening areas.
+- **xT Evolution per Action** → a step-by-step matrix illustrating how Expected Threat increases with each type of pass or cross.
+- **Opponent Player Rankings (per 90 minutes)** → identifying the top opponent players who generated the highest cumulative xT against U Cluj.
+
+By putting these outputs together, I can start to see **where U Cluj is most vulnerable**, **how threats develop during possessions**, and **which players cause the biggest problems** — all of which form a data-driven base for tactical improvements.
 
 ---
 
-## Core Questions the Analysis Will Answer
+## Key Questions Guiding the Analysis
 
-- **Where is U Cluj most vulnerable on the pitch?**  
-  The analysis will pinpoint the exact areas where opponents create their most dangerous attacks.
+While building this, I kept in mind some of the main questions that stakeholders might have, in accordance with what we learned during the live sessions organized by DataCamp's team of national and international mentors.
 
-- **What specific opponent actions break down U Cluj's defense?**  
-  The analysis will reverse-engineer opponent attacks to identify which passes or runs consistently put the team in trouble.
+My MVP doesn’t answer everything perfectly, but it provides solid first steps toward:
 
-- **Can the team predict and prevent defensive breakdowns?**  
-  A method will be developed to flag an opponent's possession as "dangerous" early on.
+- **Which areas of the pitch are most frequently exploited by opponents?**  
+  → Movement, shot, and goal maps reveal recurring zones of defensive exposure.
+
+- **Do opponents create more danger through central zones or from wide areas?**  
+  → Transition zone analysis highlights the pathways most commonly used to enter the final third.
+
+- **Which types of actions add the greatest threat against us?**  
+  → xT evolution shows whether quick passes, long balls, or wide deliveries create the most danger.
+
+- **Are there consistent “red zones” in our defensive structure?**  
+  → Zone-based xT maps expose the pitch areas where vulnerabilities are repeatedly observed.
+
+- **Which opposition players generate the most threat against U Cluj?**  
+  → Opponent rankings (per 90 minutes) highlight the attackers who have caused the greatest problems this season.
 
 ---
 
 ## Data Required
 
-To achieve these goals, the following columns from the game event data will be used:
+To make the notebook run properly, I set it up to expect a folder named **`datasets/`** with the extracted **Wyscout event data**.
 
-- `id`
-- `matchId`
-- `matchPeriod`
-- `minute`
-- `second`
-- `type.primary`
-- `type.secondary`
-- `location.x`
-- `location.y`
-- `team.id`
-- `team.name`
-- `opponentTeam.id`
-- `opponentTeam.name`
-- `player.id`
-- `player.name`
-- `pass.endLocation.x`
-- `pass.endLocation.y`
-- `shot.xg`
-- `shot.isGoal`
-- `shot.onTarget`
-- `carry.endLocation.x`
-- `carry.endLocation.y`
-- `possession.id`
-- `possession.duration`
-- `possession.startLocation.x`
-- `possession.startLocation.y`
-- `possession.endLocation.x`
-- `possession.endLocation.y`
-- `competitionId`
-- `seasonId`
-- `Home_Away`
+- **Season**: 2024–2025
+- **Matches**: All 40 games played by U Cluj
+- **Format**: CSV file (one file with all matches, as exported from Wyscout)
+
+All you need to do is place this file inside the `datasets/` directory at the root of the repository before running the notebook.
 
 ---
 
-## Methodology Step by Step
+## Methodology for the MVP
 
-The project is being tackled in four clear phases, moving from raw data to actionable insights:
+I documented the whole process in a **single Jupyter Notebook**. This way, everything is in one place:
 
-1. **Smart Data Preparation**  
-   Transform raw event data into powerful new metrics that quantify defensive performance and opponent threat.
+- **Integrated workflow** → all steps, from data preparation to visualization, live together for easier management.
+- **Faster prototyping** → I can quickly adjust ideas and immediately see results.
+- **Transparency & reproducibility** → each step (data cleaning, feature creation, visualization, xT calculation) is documented so the results can be followed or extended later.
 
-2. **Visualizing the Problem**  
-   Turn the new data and features into easy-to-understand visuals that highlight U Cluj's defensive weaknesses.
-
-3. **Building a Predictive System**  
-   Develop a smart model that can predict a defensive problem before it happens.
-
-4. **Actionable Insights**  
-   Translate all findings into a clear, concise, and actionable plan for the coaching staff.
+This notebook-first setup keeps things simple for the MVP while leaving room to break it into scripts and functions if the project grows.
 
 ---
 
-## Desired MVP Until the End of DATACAMP
+## Future Directions
 
-For the first usable version (MVP), the focus will be on completing **Smart Data Preparation (Phase 1)** and generating **Key Visualizations (Phase 2)**.  
-This is a highly achievable and immediately valuable goal. All of U Cluj's matches from the last season will be used for this analysis.
+If I push this project further, there are several directions I’d like to explore to make the analysis more complete and useful:
 
----
+- **Modularized Workflow**
 
-### What the MVP Will Include
+  - Separate the current all-in-one notebook into clear components:
+    - **Data Engineering** → extraction, cleaning, and transformation of event data.
+    - **Analysis** → xT model calculations, action breakdowns, and player metrics.
+    - **Visualization** → maps, plots, and interactive dashboards.
+  - This makes the project easier to maintain, extend, and collaborate on, while aligning with good data engineering practices.
 
-#### A. U Cluj's Defensive Vulnerability Map
+- **Shot Quality & Danger Calibration**
 
-1. **Gather Opponent Actions**  
-   Collect all opponent pass and carry events from all of U Cluj's games in the last season.
+  - Bring in _expected goals (xG)_ to measure not just where shots happen, but how good they are.
+  - Connect xT buildup directly to xG outcomes, following the _Soccermatics_ idea of linking possession value to shot quality.
 
-2. **Build a "Danger Map" (xT Map)**  
-   Using a Markov chain mathematical method, create a grid-based _Danger Map_.  
-   This map will assign an Expected Threat (**xT**) value to every square on the field, based on all passes and carries from the collected data.
+- **Defensive Action Mapping**
 
-3. **Calculate "Opponent xT Added"**  
-   For each opponent pass and carry against U Cluj:  
-   `(xT of End Square) - (xT of Start Square)` = `opponent_xT_added`  
-   This number shows how much danger that specific action created.
+  - Add heatmaps of duels, interceptions, and clearances.
+  - Compare defensive actions with high-xT zones to see if problems are due to positioning, reaction speed, or pressure.
 
-4. **Create a Heatmap**  
-   Visualize `opponent_xT_added` values on a pitch heatmap, with color intensity showing the average threat created in each grid cell (U Cluj's biggest "red zones").
+- **Expanded xT Model Variables**
 
----
+  - Include more context (e.g., pass length, direction, game state, player position).
+  - Build more detailed “xT added” metrics per action type.
 
-#### B. Opponent Pass Network and Patterns
+- **Opponent Profiling**
 
-1. **Filter for Dangerous Possessions**  
-   Select possessions with a high `opponent_xT_added` value or that resulted in a shot.
+  - Extend the player rankings into role-based profiles (wingers, strikers, midfielders).
+  - Track how different kinds of players exploit different zones.
 
-2. **Build a Network Graph**
+- **Interactive Dashboard**
 
-   - Nodes = pitch grid zones
-   - Links = ball movement from one zone to another
-   - Link thickness = number of passes/carries
-   - Display this graph as an overlay on a pitch diagram.
+  - Turn everything into a user-friendly tool (Power BI, Streamlit) where coaches can filter by match, player, or action type.
 
-3. **Find Common Patterns**  
-   Identify the **top 5–10 most common pathways** opponents used to enter dangerous zones.  
-   Trace the strongest links to reverse-engineer their most successful attacking sequences.
-
----
-
-## Extra Features the Team Would Like to Add
-
-If the MVP is successful, future steps could include:
-
-- **Shot Quality Analysis**: Analyze average `shot.xg` of shots conceded to understand chance quality.
-- **Defensive Action Analysis**: Create heatmaps of successful duels and interceptions to compare strengths vs. vulnerabilities.
-- **A Full Predictive System**: Expand the model to include more variables and real-time predictions.
-- **An Interactive Dashboard**: Build a user-friendly interface for the coaching staff to monitor defensive KPIs.
+- **Predictive Systems** (long-term)
+  - Move beyond describing what happened to predicting what’s likely next.
+  - For example: flagging possessions as “likely dangerous” before they even reach the final third, as outlined in _Soccermatics_.
