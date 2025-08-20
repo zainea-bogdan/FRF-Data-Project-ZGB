@@ -24,7 +24,6 @@ try:
     df_raw = pd.read_csv("datasets/Universitatea_Cluj_2024_2025_events.csv")
     # Convert 'type.secondary' and 'pass.endLocation' from strings to lists/objects
     df_raw['type.secondary'] = df_raw['type.secondary'].apply(lambda x: ast.literal_eval(x) if isinstance(x, str) else x)
-    # Assume 'pass.endLocation' is also a string representation of an object
     df_raw['pass.endLocation.x'] = df_raw['pass.endLocation.x'].astype(float)
     df_raw['pass.endLocation.y'] = df_raw['pass.endLocation.y'].astype(float)
 
@@ -36,7 +35,7 @@ except FileNotFoundError:
         'player.name': ['Player ' + str(i) for i in np.random.randint(1, 10, 1000)],
         'player.position': np.random.choice(['Defender', 'Midfielder', 'Forward'], 1000),
         'team.name': np.random.choice(['UCLUJ', 'Team B', 'Team C'], 1000),
-        'type.secondary': np.random.choice(['short_or_medium_pass', 'long_pass', 'other_event'], 1000),
+        'type.secondary': np.random.choice([['short_or_medium_pass'], ['long_pass'], ['other_event']], 1000),
         'pass.accurate': np.random.choice([True, False], 1000),
         'matchId': np.random.choice([1, 2, 3, 4, 5], 1000),
         'minute': np.random.randint(0, 95, 1000),
@@ -72,7 +71,6 @@ TEAMS = [
 ]
 
 # --- PLOT DESCRIPTIONS ---
-# Dictionary to store a description for each plot
 PLOT_DESCRIPTIONS = {
     'Pass Heatmap': "This heatmap visualizes the starting locations of all accurate passes. The darker shades of blue indicate areas where a high number of passes were initiated. This gives a clear picture of the team's build-up play and general passing patterns.",
     'Shot Heatmap': "This heatmap shows the locations from where all shots were taken. The green color intensity represents the concentration of shot attempts, highlighting the most common shooting areas on the pitch for the selected team.",
@@ -80,20 +78,11 @@ PLOT_DESCRIPTIONS = {
     'Move Probability': "This is a probability map showing the likelihood of a successful pass (move) occurring in each zone of the pitch. Hotter colors indicate higher probability. This is a fundamental component of the Expected Threat (xT) model.",
     'Shot Probability': "This map visualizes the probability of a shot being taken from each zone on the pitch. The greener the area, the more likely a shot is to occur from that location, which is a key factor in calculating xT.",
     'Goal Probability': "This plot shows the probability of a shot resulting in a goal from each zone. Redder areas indicate a higher likelihood of a goal being scored from that position, serving as a simple Expected Goals (xG) model.",
-    'xT Matrix after 1 Moves': "The Expected Threat (xT) matrix after one iteration of the Markov chain. This is the initial state of the xT model, showing the raw threat values of each zone based on direct pass and shot probabilities.",
-    'xT Matrix after 2 Moves': "The xT matrix after two moves. The values have been updated to reflect the added threat of passes that move the ball into more dangerous areas, even if they aren't followed by an immediate shot.",
-    'xT Matrix after 3 Moves': "The xT matrix after three moves. The model's understanding of long-term threat has deepened. Values in deeper areas of the pitch are starting to increase as their potential for leading to a goal becomes more evident.",
-    'xT Matrix after 4 Moves': "The xT matrix after four moves. The model is now capable of valuing sequences of passes that lead to a high-threat zone. The values are becoming more stable and representative of the pitch's true offensive value.",
-    'xT Matrix after 5 Moves': "The xT matrix after five moves. The threat values across the pitch are becoming more refined. The high-value zones near the goal are clearly defined, and passes into these areas are highly valued by the model.",
-    'xT Matrix after 6 Moves': "The xT matrix after six moves. The values are nearing convergence. This iteration of the model provides a comprehensive view of the pitch's offensive value, accounting for complex passing sequences.",
-    'xT Matrix after 7 Moves': "The xT matrix after seven moves. At this stage, the changes in xT values are minimal, indicating that the model has largely converged. The heatmap accurately reflects the strategic value of each zone.",
-    'xT Matrix after 8 Moves': "The xT matrix after eight moves. The values are now very stable. This is a robust representation of the offensive value of each zone, factoring in multiple passes and shots.",
-    'xT Matrix after 9 Moves': "The xT matrix after nine moves. The model has reached a high level of accuracy. The values across the pitch provide a reliable measure of the threat associated with ball possession in any given zone.",
-    'xT Matrix after 10 Moves': "The final Expected Threat (xT) matrix after 10 iterations. This converged model provides the most accurate and complete representation of the offensive value of each zone on the pitch."
+    'Transition Matrix': "This plot visualizes the transition probabilities from a specific sector of the pitch to all other sectors, highlighting where the ball is most likely to move next. The starting sector is highlighted in yellow. The color intensity in other squares represents the probability of a pass ending in that zone.",
+    **{f'xT Matrix after {i+1} Moves': f"The Expected Threat (xT) matrix after {i+1} iteration{'' if i == 0 else 's'} of the Markov chain. This shows the value of each zone based on direct pass and shot probabilities, and how that value increases with subsequent passes." for i in range(10)}
 }
 
 # --- CACHING ---
-# Cache to store calculation results to avoid re-computation on subsequent requests
 calculation_cache = {}
 
 # --- FLASK WEB APPLICATION SETUP ---
@@ -179,6 +168,14 @@ HTML_RESULTS = """
                         <option value="{{ plot_title }}" {% if plot_title == selected_plot_title %}selected{% endif %}>{{ plot_title }}</option>
                         {% endfor %}
                     </select>
+                    {% if selected_plot_title == 'Transition Matrix' %}
+                    <label for="sector_select">Select a Sector:</label>
+                    <select name="sector_index" id="sector_select" onchange="this.form.submit()">
+                        {% for i in range(192) %}
+                        <option value="{{ i }}" {% if i|string == selected_sector %}selected{% endif %}>Sector {{ i }}</option>
+                        {% endfor %}
+                    </select>
+                    {% endif %}
                 </form>
             </div>
             
@@ -186,10 +183,8 @@ HTML_RESULTS = """
                 <div class="plot-box">
                     <img src="data:image/png;base64,{{ plot_url }}" alt="{{ plot_title }}">
                     <div class="plot-caption">
-                        <h2>{{ plot_title }}</h2>
-                        <p>
-                            {{ descriptions[plot_title] }}
-                        </p>
+                        <h2>{{ descriptions_to_display[plot_title] }}</h2>
+                        <p>{{ descriptions[descriptions_to_display[plot_title]] }}</p>
                     </div>
                 </div>
             {% endfor %}
@@ -206,7 +201,6 @@ HTML_RESULTS = """
 def generate_heatmap_plot(binned_statistic, title, cmap='Blues', show_labels=False, figsize=(15, 8)):
     """
     Generates a heatmap plot from a pre-binned statistic and returns it as a base64 encoded image string.
-    Added a `show_labels` parameter to conditionally display labels and `figsize` for plot size.
     """
     plt.style.use('seaborn-v0_8-whitegrid')
     fig, ax = plt.subplots(figsize=figsize)
@@ -217,14 +211,11 @@ def generate_heatmap_plot(binned_statistic, title, cmap='Blues', show_labels=Fal
     if binned_statistic is None:
         ax.set_title(title, fontsize=20)
     else:
-        # Plot the heatmap
         pcm = pitch.heatmap(binned_statistic, cmap=cmap, edgecolor='grey', ax=ax)
         
-        # Add a colorbar
         ax_cbar = fig.add_axes([0.95, 0.1, 0.03, 0.8])
         plt.colorbar(pcm, cax=ax_cbar)
         
-        # Conditionally add labels to the plot
         if show_labels:
             pitch.label_heatmap(binned_statistic, color='blue', fontsize=9,
                                  ax=ax, ha='center', va='center', str_format="{0:,.2f}", zorder=3)
@@ -237,6 +228,90 @@ def generate_heatmap_plot(binned_statistic, title, cmap='Blues', show_labels=Fal
     buf.seek(0)
     return base64.b64encode(buf.getvalue()).decode('utf-8')
 
+def generate_transition_matrix_plot(transition_matrices_array, sector_index, bins):
+    """
+    Generates a heatmap of a specific transition matrix for a given sector,
+    with an added number for each cell.
+    """
+    plt.style.use('seaborn-v0_8-whitegrid')
+    fig, ax = plt.subplots(figsize=(15, 8))
+    pitch = Pitch(line_color='black', pitch_type='custom', pitch_length=105, pitch_width=68, line_zorder=2)
+    pitch.draw(ax=ax)
+    
+    if sector_index < 0 or sector_index >= transition_matrices_array.shape[0]:
+        ax.set_title(f"Invalid Sector Index: {sector_index}", fontsize=20)
+        buf = io.BytesIO()
+        plt.savefig(buf, format='png', bbox_inches='tight')
+        plt.close(fig)
+        buf.seek(0)
+        return base64.b64encode(buf.getvalue()).decode('utf-8'), "Invalid Sector"
+        
+    transition_matrix = transition_matrices_array[sector_index]
+    
+    # Create a binned statistic object with the transition matrix data.
+    binned_stat = {
+        'statistic': transition_matrix,
+        'x_grid': np.linspace(0, 105, bins[0] + 1),
+        'y_grid': np.linspace(0, 68, bins[1] + 1)
+    }
+    
+    # Get the x and y coordinates for the selected sector to highlight it
+    x_coords = np.linspace(0, 105, bins[0] + 1)
+    y_coords = np.linspace(0, 68, bins[1] + 1)
+    sector_y_bin = sector_index // bins[0]
+    sector_x_bin = sector_index % bins[0]
+    
+    rect_x = x_coords[sector_x_bin]
+    rect_y = y_coords[sector_y_bin]
+    rect_width = x_coords[sector_x_bin + 1] - rect_x
+    rect_height = y_coords[sector_y_bin + 1] - rect_y
+    
+    rect = plt.Rectangle((rect_x, rect_y), rect_width, rect_height,
+                         edgecolor='red', facecolor='yellow', linewidth=3, zorder=4,
+                         alpha=0.5, label='Starting Sector')
+    ax.add_patch(rect)
+    
+    # Plot the transition probabilities
+    heatmap = pitch.heatmap(
+        binned_stat,
+        cmap='Greens',
+        edgecolor='grey',
+        ax=ax,
+        vmin=0,
+        vmax=np.max(transition_matrix)
+    )
+    
+    # Add a colorbar
+    ax_cbar = fig.add_axes([0.95, 0.1, 0.03, 0.8])
+    plt.colorbar(heatmap, cax=ax_cbar)
+    
+    # Add cell numbers to the plot
+    for y_idx in range(bins[1]):
+        for x_idx in range(bins[0]):
+            sector_number = y_idx * bins[0] + x_idx
+            text_color = 'white' if transition_matrix[y_idx, x_idx] > 0.05 else 'black'
+            ax.text(
+                (x_coords[x_idx] + x_coords[x_idx + 1]) / 2,
+                (y_coords[y_idx] + y_coords[y_idx + 1]) / 2,
+                str(sector_number),
+                ha='center',
+                va='center',
+                color=text_color,
+                fontsize=8,
+                zorder=5
+            )
+
+    plot_title = f"Transition Probabilities from Sector {sector_index}"
+    fig.suptitle(plot_title, fontsize=20)
+    
+    buf = io.BytesIO()
+    plt.savefig(buf, format='png', bbox_inches='tight')
+    plt.close(fig)
+    
+    buf.seek(0)
+    return base64.b64encode(buf.getvalue()).decode('utf-8'), plot_title
+
+
 def run_all_calculations(dataframe):
     """
     Runs all the core calculations once and stores the binned statistics.
@@ -246,7 +321,7 @@ def run_all_calculations(dataframe):
     bins = (16, 12)
     
     # 1. HEATMAPS FOR MOVES, SHOTS, AND GOALS
-    pass_types = ['short_or_medium_pass', 'long_pass', 'head_pass', 'smart_pass', 'cross', 'forward_pass', 'progressive_pass', 'lateral_pass']
+    pass_types = ['short_or_medium_pass', 'long_pass', 'head_pass', 'smart_pass', 'cross', 'forward_pass', 'progressive_pass', 'lateral_pass','back_pass','dribble']
     move_df = dataframe.loc[
         (dataframe['type.secondary'].apply(lambda x: isinstance(x, list) and any(item in x for item in pass_types))) &
         (dataframe['pass.accurate'] == True)
@@ -308,6 +383,8 @@ def run_all_calculations(dataframe):
                     if 0 < end_sector_x <= 16 and 0 < end_sector_y <= 12:
                         transition_matrices_array[start_sector_flat_idx][end_sector_y - 1][end_sector_x - 1] = value / count_starts
 
+        calculations['transition_matrices_array'] = transition_matrices_array
+        
         xT_final = np.zeros((12, 16))
         num_iterations = 10
         xT_matrices = {}
@@ -330,74 +407,48 @@ def generate_specific_plot(calculations, plot_title, df):
     """
     Generates a single plot based on a title and pre-calculated statistics.
     """
-    plots = {}
     pitch = Pitch(line_color='black', pitch_type='custom', pitch_length=105, pitch_width=68, line_zorder=2)
+    
+    binned_stat = None
+    cmap = 'Blues'
+    show_labels = False
     
     if plot_title == 'Pass Heatmap':
         binned_stat = calculations.get('move_binned')
-        title = 'Pass Heatmap' # Correct title for the dictionary lookup
         cmap = 'Blues'
-        show_labels = False
     elif plot_title == 'Shot Heatmap':
         binned_stat = calculations.get('shot_binned')
-        title = 'Shot Heatmap' # Correct title for the dictionary lookup
         cmap = 'Greens'
-        show_labels = False
     elif plot_title == 'Goal Heatmap':
         binned_stat = calculations.get('goal_binned')
-        title = 'Goal Heatmap' # Correct title for the dictionary lookup
         cmap = 'Reds'
-        show_labels = False
     elif plot_title == 'Move Probability':
         binned_stat = calculations.get('move_prob_binned')
-        title = 'Move Probability' # Correct title for the dictionary lookup
         cmap = 'Blues'
-        show_labels = False
     elif plot_title == 'Shot Probability':
         binned_stat = calculations.get('shot_prob_binned')
-        title = 'Shot Probability' # Correct title for the dictionary lookup
         cmap = 'Greens'
-        show_labels = False
     elif plot_title == 'Goal Probability':
         binned_stat = calculations.get('goal_prob_binned')
-        title = 'Goal Probability' # Correct title for the dictionary lookup
         cmap = 'Reds'
-        show_labels = False
     elif 'xT Matrix after' in plot_title:
         xT_matrices = calculations.get('xT_matrices', {})
         binned_stat = xT_matrices.get(plot_title)
-        title = plot_title
         cmap = 'Oranges'
         show_labels = True
     else:
-        binned_stat = None
         title = "Plot Not Found"
-        cmap = 'Greys'
-        show_labels = False
-
-    plt.style.use('seaborn-v0_8-whitegrid')
-    fig, ax = plt.subplots(figsize=(15, 8))
-    pitch.draw(ax=ax)
-    
-    if binned_stat is None:
+        buf = io.BytesIO()
+        plt.style.use('seaborn-v0_8-whitegrid')
+        fig, ax = plt.subplots(figsize=(15, 8))
+        pitch.draw(ax=ax)
         ax.set_title(title, fontsize=20)
-    else:
-        pcm = pitch.heatmap(binned_stat, cmap=cmap, edgecolor='grey', ax=ax)
-        ax_cbar = fig.add_axes([0.95, 0.1, 0.03, 0.8])
-        plt.colorbar(pcm, cax=ax_cbar)
-        
-        if show_labels:
-            pitch.label_heatmap(binned_stat, color='blue', fontsize=9,
-                                 ax=ax, ha='center', va='center', str_format="{0:,.2f}", zorder=3)
-        fig.suptitle(title, fontsize=20)
+        plt.savefig(buf, format='png', bbox_inches='tight')
+        plt.close(fig)
+        buf.seek(0)
+        return base64.b64encode(buf.getvalue()).decode('utf-8'), title
 
-    buf = io.BytesIO()
-    plt.savefig(buf, format='png', bbox_inches='tight')
-    plt.close(fig)
-    buf.seek(0)
-    image_base64 = base64.b64encode(buf.getvalue()).decode('utf-8')
-    
-    return image_base64, title
+    return generate_heatmap_plot(binned_stat, plot_title, cmap=cmap, show_labels=show_labels), plot_title
 
 @app.route('/')
 def index():
@@ -423,45 +474,72 @@ def index():
 
 @app.route('/analyze', methods=['POST', 'GET'])
 def analyze():
-    """
-    Handles form submission and plot selection, runs the analysis, and renders the results page.
-    """
     selected_team_id_str = request.values.get('team_id_selection')
     selected_plot_title = request.values.get('plot_title')
+    selected_sector = request.values.get('sector_index')
 
     if selected_team_id_str == 'UCLUJ':
         processed_df = df_raw.copy()
-        processed_df = processed_df[processed_df["team.id"] != 60374] # Filter for opponents
-        title = "All Games (Detailed Analysis)"
+        processed_df = processed_df[processed_df["team.id"] != 60374]
+        title = "UCLUJ - All Games"
         team_id_context = 'UCLUJ'
     else:
         selected_team_id = int(selected_team_id_str)
         processed_df = df_raw.copy()
         processed_df = processed_df[processed_df["team.id"] == selected_team_id] 
         team_name = next((name for tid, name in TEAMS if tid == selected_team_id), f"Team {selected_team_id}")
-        title = f"Game {team_name}"
+        title = f"Game vs {team_name}"
         team_id_context = selected_team_id_str
-
+    
     if processed_df.empty:
-        message = f"No data available for the selected game. Please go back and try again."
-        return render_template_string(HTML_RESULTS, plots={}, title=title, message=message, team_id_selection=team_id_context)
+        message = "No data available for the selected game. Please go back and try again."
+        # Pass an empty descriptions_to_display dictionary to avoid a KeyError
+        return render_template_string(HTML_RESULTS, plots={}, title=title, message=message, team_id_selection=team_id_context, descriptions=PLOT_DESCRIPTIONS, descriptions_to_display={})
 
     processed_df['type.secondary'] = processed_df['type.secondary'].apply(lambda x: ast.literal_eval(x) if isinstance(x, str) else x)
     
-    cache_key = (team_id_context)
+    cache_key = team_id_context
     if cache_key not in calculation_cache:
         calculation_cache[cache_key] = run_all_calculations(processed_df)
 
-    plot_titles = ['Pass Heatmap', 'Shot Heatmap', 'Goal Heatmap', 'Move Probability', 'Shot Probability', 'Goal Probability']
+    plot_titles = ['Pass Heatmap', 'Shot Heatmap', 'Goal Heatmap', 'Move Probability', 'Shot Probability', 'Goal Probability', 'Transition Matrix']
     plot_titles.extend([f'xT Matrix after {i+1} Moves' for i in range(10)])
     
     if not selected_plot_title:
         selected_plot_title = plot_titles[0]
     
-    plot_url, plot_title_result = generate_specific_plot(calculation_cache[cache_key], selected_plot_title, processed_df)
-    plots_to_display = {plot_title_result: plot_url}
+    plots_to_display = {}
+    descriptions_to_display = {}
     
-    return render_template_string(HTML_RESULTS, plots=plots_to_display, title=title, plot_titles=plot_titles, selected_plot_title=selected_plot_title, team_id_selection=team_id_context, descriptions=PLOT_DESCRIPTIONS)
+    if selected_plot_title == 'Transition Matrix':
+        sector_index = int(selected_sector) if selected_sector and selected_sector.isdigit() else 0
+        
+        transition_matrices_array = calculation_cache[cache_key].get('transition_matrices_array')
+        if transition_matrices_array is not None:
+            plot_url, plot_title_result = generate_transition_matrix_plot(transition_matrices_array, sector_index, (16, 12))
+            plots_to_display[plot_title_result] = plot_url
+            # Use the static key "Transition Matrix" to fetch the description
+            descriptions_to_display[plot_title_result] = 'Transition Matrix'
+        else:
+            message = "Transition matrices not found. Cannot generate plot."
+            return render_template_string(HTML_RESULTS, plots={}, title=title, message=message, team_id_selection=team_id_context, descriptions=PLOT_DESCRIPTIONS, descriptions_to_display={})
+    else:
+        plot_url, plot_title_result = generate_specific_plot(calculation_cache[cache_key], selected_plot_title, processed_df)
+        plots_to_display[plot_title_result] = plot_url
+        # Use the dynamic title as the key to fetch the description
+        descriptions_to_display[plot_title_result] = plot_title_result
+    
+    return render_template_string(
+        HTML_RESULTS,
+        plots=plots_to_display,
+        title=title,
+        plot_titles=plot_titles,
+        selected_plot_title=selected_plot_title,
+        team_id_selection=team_id_context,
+        selected_sector=selected_sector,
+        descriptions=PLOT_DESCRIPTIONS,
+        descriptions_to_display=descriptions_to_display
+    )
 
 if __name__ == '__main__':
     app.run(debug=True)
