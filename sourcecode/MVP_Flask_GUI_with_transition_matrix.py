@@ -29,27 +29,6 @@ try:
 
 except FileNotFoundError:
     print("Error: Dataset file not found. Please check the file path.")
-    # Create a dummy DataFrame if the file is not found to allow the app to run
-    data = {
-        'player.id': np.random.randint(1, 10, 1000),
-        'player.name': ['Player ' + str(i) for i in np.random.randint(1, 10, 1000)],
-        'player.position': np.random.choice(['Defender', 'Midfielder', 'Forward'], 1000),
-        'team.name': np.random.choice(['UCLUJ', 'Team B', 'Team C'], 1000),
-        'type.secondary': np.random.choice([['short_or_medium_pass'], ['long_pass'], ['other_event']], 1000),
-        'pass.accurate': np.random.choice([True, False], 1000),
-        'matchId': np.random.choice([1, 2, 3, 4, 5], 1000),
-        'minute': np.random.randint(0, 95, 1000),
-        'second': np.random.randint(0, 60, 1000),
-        'location.x': np.random.randint(1, 100, 1000),
-        'location.y': np.random.randint(1, 100, 1000),
-        'pass.endLocation.x': np.random.randint(1, 100, 1000),
-        'pass.endLocation.y': np.random.randint(1, 100, 1000),
-        'matchPeriod': np.random.choice(['1H', '2H'], 1000),
-        'shot.isGoal': np.random.choice([True, False], 1000),
-        'type.primary': np.random.choice(['pass', 'shot'], 1000),
-        'team.id': np.random.choice([60374, 11566], 1000)
-    }
-    df_raw = pd.DataFrame(data)
 
 # --- Define the list of teams and their IDs ---
 TEAMS = [
@@ -72,14 +51,32 @@ TEAMS = [
 
 # --- PLOT DESCRIPTIONS ---
 PLOT_DESCRIPTIONS = {
-    'Pass Heatmap': "This heatmap visualizes the starting locations of all accurate passes. The darker shades of blue indicate areas where a high number of passes were initiated. This gives a clear picture of the team's build-up play and general passing patterns.",
-    'Shot Heatmap': "This heatmap shows the locations from where all shots were taken. The green color intensity represents the concentration of shot attempts, highlighting the most common shooting areas on the pitch for the selected team.",
-    'Goal Heatmap': "This heatmap displays the locations of all goals scored. The red color intensity indicates the areas from which the team successfully scored, giving insights into the most effective scoring zones.",
-    'Move Probability': "This is a probability map showing the likelihood of a successful pass (move) occurring in each zone of the pitch. Hotter colors indicate higher probability. This is a fundamental component of the Expected Threat (xT) model.",
-    'Shot Probability': "This map visualizes the probability of a shot being taken from each zone on the pitch. The greener the area, the more likely a shot is to occur from that location, which is a key factor in calculating xT.",
-    'Goal Probability': "This plot shows the probability of a shot resulting in a goal from each zone. Redder areas indicate a higher likelihood of a goal being scored from that position, serving as a simple Expected Goals (xG) model.",
-    'Transition Matrix': "This plot visualizes the transition probabilities from a specific sector of the pitch to all other sectors, highlighting where the ball is most likely to move next. The starting sector is highlighted in yellow. The color intensity in other squares represents the probability of a pass ending in that zone.",
-    **{f'xT Matrix after {i+1} Moves': f"The Expected Threat (xT) matrix after {i+1} iteration{'' if i == 0 else 's'} of the Markov chain. This shows the value of each zone based on direct pass and shot probabilities, and how that value increases with subsequent passes." for i in range(10)}
+    'Moving-Ball Actions ( Pass actions ) Heatmap': 
+    "Această hartă  (Heatmap) arată zonele din care adversarii au început acțiuni de mutare a mingii, fie prin pase, fie prin driblinguri reușite. Poarta noastră se află în dreapta, iar cea adversă în stânga, astfel încât harta evidențiază regiunile de unde au pornit atacurile împotriva noastră. Terenul este împărțit într-o grilă de 192 de celule, fiecare celulă fiind colorată în funcție de frecvența acțiunilor inițiate acolo: nuanțele mai închise indică un număr mai mare, iar cele mai deschise un număr mai mic. Zonele intens colorate arată spațiile preferate de adversari pentru a-și construi atacurile și pot semnala vulnerabilități defensive atunci când apar aproape de poarta noastră. În ansamblu, această analiză oferă o imagine clară asupra strategiei ofensive a adversarilor și ne ajută să ne ajustăm mai bine tactica pentru a contracara zonele lor de forță.",
+    'Shot Heatmap': 
+    "Această hartă  (Heatmap) evidențiază zonele din care adversarii au șutat împotriva noastră. Poarta noastră este plasată în dreapta, iar cea adversă în stânga, astfel încât vizualizarea arată locurile de pe teren de unde s-au produs finalizările. Terenul este împărțit într-o grilă de 192 de celule, fiecare celulă fiind colorată în funcție de frecvența șuturilor: nuanțele mai închise indică un număr mai mare de încercări, iar cele mai deschise un număr mai mic. În plus, numărul afișat în fiecare celulă reprezintă exact câte șuturi au fost înregistrate din acea zonă. Zonele intens colorate și cu valori ridicate arată pozițiile preferate de adversari pentru a finaliza atacurile și pot semnala puncte critice ale apărării noastre. Această analiză oferă o imagine clară asupra tiparelor de finalizare ale adversarilor și ne ajută să identificăm regiunile terenului unde riscul de a primi gol este cel mai ridicat.",
+    'Goal Heatmap': 
+    "Această hartă (Heatmap) evidențiază zonele din care adversarii au reușit să înscrie împotriva noastră. Poarta noastră se află în dreapta, iar cea adversă în stânga, astfel încât harta arată locurile de pe teren de unde au fost finalizate cu succes atacurile. Terenul este împărțit într-o grilă de 192 de celule, fiecare celulă fiind colorată în funcție de frecvența golurilor marcate din acea zonă: nuanțele mai închise indică un număr mai mare de reușite, iar cele mai deschise un număr mai mic. În plus, numărul afișat în fiecare celulă reprezintă exact câte goluri au fost înregistrate din zona respectivă. Zonele intens colorate și cu valori ridicate arată punctele de teren din care adversarii finalizează cel mai eficient, oferind indicii clare despre cele mai vulnerabile regiuni ale apărării noastre. Analiza acestui tipar ne ajută să înțelegem unde adversarii își maximizează șansele și să identificăm zonele în care trebuie să consolidăm apărarea.",
+    'Move Probability': 
+    "Această hartă  (Heatmap) arată probabilitatea ca adversarii să inițieze o acțiune de mutare a mingii (pase sau driblinguri reușite) din fiecare zonă a terenului. Poarta noastră este în dreapta, iar cea adversă în stânga, astfel încât vizualizarea scoate în evidență regiunile din care este cel mai probabil să înceapă construcțiile ofensive împotriva noastră. Terenul este împărțit într-o grilă de 192 de celule, fiecare fiind colorată în funcție de probabilitatea unei acțiuni de mutare: nuanțele foarte deschise (spre alb-portocaliu) indică șanse reduse, iar cele mai închise (portocaliu intens până la maro) indică șanse ridicate. Numărul afișat în fiecare celulă reprezintă exact probabilitatea ca adversarii să inițieze o astfel de acțiune din zona respectivă. De exemplu, o celulă colorată într-un portocaliu mediu, cu valoarea 0.4, arată că există o probabilitate de 40% ca adversarii să pornească o pasă sau un dribling din acea zonă. Zonele intens colorate și cu valori ridicate marchează spațiile preferate pentru începutul atacurilor și pot semnala vulnerabilități în faza noastră defensivă. Această analiză oferă o imagine mai nuanțată decât simpla frecvență a evenimentelor, indicând nu doar unde s-au produs mutările, ci și unde este cel mai probabil să apară în viitor.",
+    'Shot Probability':
+    "Această hartă  (Heatmap) arată probabilitatea ca adversarii să șuteze din fiecare zonă a terenului. Poarta noastră este în dreapta, iar cea adversă în stânga, astfel încât vizualizarea evidențiază regiunile de unde este cel mai probabil să apară finalizările împotriva noastră. Terenul este împărțit într-o grilă de 192 de celule, fiecare fiind colorată în funcție de probabilitatea unui șut: nuanțele foarte deschise (spre alb-portocaliu) indică șanse reduse, iar cele mai închise (portocaliu intens până la maro) indică șanse ridicate. Numărul afișat în fiecare celulă reprezintă exact probabilitatea ca adversarii să șuteze din acea zonă. De exemplu, o celulă colorată într-un portocaliu mediu, cu valoarea 0.6, arată că există o probabilitate de 60% ca adversarii să încerce un șut atunci când ajung în acea zonă. Zonele intens colorate și cu valori mari marchează spațiile preferate pentru finalizare și pot semnala punctele vulnerabile ale apărării noastre. Această analiză oferă nu doar o imagine asupra locurilor unde s-au produs șuturile, ci și asupra zonelor în care este cel mai probabil să apară în viitor, oferind o perspectivă utilă pentru ajustarea tacticii defensive.",
+    'Goal Probability': 
+    "Această hartă  (Heatmap) arată probabilitatea ca adversarii să înscrie din fiecare zonă a terenului. Poarta noastră este în dreapta, iar cea adversă în stânga, astfel încât vizualizarea evidențiază regiunile de unde este cel mai probabil să apară golurile împotriva noastră. Terenul este împărțit într-o grilă de 192 de celule, fiecare fiind colorată în funcție de probabilitatea unui gol: nuanțele foarte deschise (spre alb-portocaliu) indică șanse reduse, iar cele mai închise (portocaliu intens până la maro) indică șanse ridicate. Numărul afișat în fiecare celulă reprezintă exact probabilitatea ca adversarii să marcheze din zona respectivă. De exemplu, o celulă colorată într-un portocaliu închis, cu valoarea 0.8, arată că există o probabilitate de 80% ca un șut din acea zonă să se transforme în gol. Zonele intens colorate și cu valori ridicate scot în evidență punctele cele mai vulnerabile ale apărării noastre și pot ghida ajustările tactice necesare pentru a limita eficiența adversarilor în acele regiuni.",
+    'Transition Matrix': 
+    "Această hartă  (Heatmap)  arată probabilitatea ca mingea să fie mutată dintr-un anumit sector al terenului către toate celelalte sectoare. Sectorul selectat este evidențiat cu galben, iar fiecare celulă colorată indică șansa ca mingea să ajungă acolo printr-o pasă sau o acțiune de mutare. Nuanțele mai deschise indică probabilități reduse, în timp ce verdele închis arată zonele în care mingea ajunge cel mai frecvent din sectorul de plecare. Numărul afișat în fiecare celulă reprezintă exact probabilitatea tranziției către acea zonă. Spre deosebire de o hartă statică, această vizualizare este dinamică: de fiecare dată când selectăm un sector de pornire, matricea se actualizează și arată tiparele de pasare specifice acelui punct de pe teren. Astfel, putem analiza modul în care adversarii mută mingea în funcție de diferite regiuni și putem înțelege rutele preferate de progresie a jocului.",
+    ** {
+    f'xT Matrix after {i+1} Moves': (
+        f"Matricea Expected Threat (xT) după {i+1} iteraț{'ie a' if i == 0 else 'ii ale'}  lanțului Markov. "
+        "Această hartă  (Heatmap) arată distribuția valorii Expected Threat (xT) pe teren. "
+        "Indică nivelul de pericol asociat fiecărei zone, ținând cont atât de probabilitatea unui șut direct din acea poziție, "
+        "cât și de șansa de a progresa mingea prin pase către zone mai periculoase. "
+        "Pe măsură ce iterațiile avansează, valorile se propagă și cresc treptat de-a lungul terenului, "
+        "subliniind cum potențialul ofensiv se acumulează prin acțiuni succesive. "
+        "Vizualizarea surprinde nu doar o stare statică, ci dinamica prin care un atac câștigă valoare cu fiecare pasă sau șut suplimentar."
+    )
+    for i in range(10)
+}
 }
 
 # --- CACHING ---
@@ -413,24 +410,29 @@ def generate_specific_plot(calculations, plot_title, df):
     cmap = 'Blues'
     show_labels = False
     
-    if plot_title == 'Pass Heatmap':
+    if plot_title == 'Moving-Ball Actions ( Pass actions ) Heatmap':
         binned_stat = calculations.get('move_binned')
-        cmap = 'Blues'
+        cmap = 'Oranges'
     elif plot_title == 'Shot Heatmap':
         binned_stat = calculations.get('shot_binned')
-        cmap = 'Greens'
+        cmap = 'Oranges'
+        show_labels = True
     elif plot_title == 'Goal Heatmap':
         binned_stat = calculations.get('goal_binned')
-        cmap = 'Reds'
+        cmap = 'Oranges'
+        show_labels = True
     elif plot_title == 'Move Probability':
         binned_stat = calculations.get('move_prob_binned')
-        cmap = 'Blues'
+        cmap = 'Oranges'
+        show_labels = True
     elif plot_title == 'Shot Probability':
         binned_stat = calculations.get('shot_prob_binned')
-        cmap = 'Greens'
+        cmap = 'Oranges'
+        show_labels = True
     elif plot_title == 'Goal Probability':
         binned_stat = calculations.get('goal_prob_binned')
-        cmap = 'Reds'
+        cmap = 'Oranges'
+        show_labels = True
     elif 'xT Matrix after' in plot_title:
         xT_matrices = calculations.get('xT_matrices', {})
         binned_stat = xT_matrices.get(plot_title)
@@ -502,7 +504,7 @@ def analyze():
     if cache_key not in calculation_cache:
         calculation_cache[cache_key] = run_all_calculations(processed_df)
 
-    plot_titles = ['Pass Heatmap', 'Shot Heatmap', 'Goal Heatmap', 'Move Probability', 'Shot Probability', 'Goal Probability', 'Transition Matrix']
+    plot_titles = ['Moving-Ball Actions ( Pass actions ) Heatmap', 'Shot Heatmap', 'Goal Heatmap', 'Move Probability', 'Shot Probability', 'Goal Probability', 'Transition Matrix']
     plot_titles.extend([f'xT Matrix after {i+1} Moves' for i in range(10)])
     
     if not selected_plot_title:
