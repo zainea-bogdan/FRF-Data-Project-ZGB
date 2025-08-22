@@ -10,7 +10,7 @@
 4. [Methodology](#methodology)
 5. [MVP Notebook](#mvp-notebook)
 6. [GUI for MVP](#gui-for-mvp)
-7. [Results — All Games U Cluj](#interpretation-all-games-u-cluj)
+7. [Results — All Games U Cluj](#results--all-games-u-cluj)
 8. [Vision for the Future](#vision-for-the-future)
 
 ## FRF Data Camp Concept
@@ -197,7 +197,7 @@ The idea was simple: instead of running cells in a notebook, you can interact wi
 
 In short: the Flask GUI takes the notebook’s heavy lifting and makes it accessible in a **fast, dynamic, and choice-based interface**, so even coaches or staff without coding background can explore U Cluj’s defensive flaws.
 
-## Results
+## Results — All Games U Cluj
 
 After hard battle and back and forth, here are the results of my desired mvp for the entire season.
 
