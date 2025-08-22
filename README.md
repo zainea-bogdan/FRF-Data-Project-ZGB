@@ -207,6 +207,17 @@ Yeah, the transition matrix also showcase a lot of insights but for now I am gon
 
 > PS: the screenshots are taken from GUI interface since they are the most polished one, compared to the ones from the notebook . Thanks for understanding
 
+**TL/DR — The shortest conclusion**
+
+The xT heatmap brings the full story together:
+
+- **Starting zones** (Moving-Ball Map) → opponents often built from deep, drawing U Cluj’s midfield higher.
+- **Shot Map** → most attempts originated from the **right side**.
+- **Goal Map** → many of those chances were successfully converted.
+- **xT Heatmap** → quantifies it: the **right defensive flank** and **central penalty area** are the most dangerous zones for U Cluj, consistently exploited by opponents.
+
+👉 **For the coaching staff:** reinforce the **right defensive side**, improve compactness in central areas, and stay alert to overloads created through right-sided transitions.
+
 ### Opponent Moving-Ball Actions — Starting Zones (All Passes & Dribbles)
 
 ![Opponent Moving-Ball Heatmap](images/moves_heatmap.png)
@@ -240,6 +251,8 @@ Yeah, the transition matrix also showcase a lot of insights but for now I am gon
 
 </details>
 
+### Opponent Goals Heatmap — Defensive Perspective
+
 ![Opponent Goals Heatmap](images/goals_heatmap.png)
 
 <details>
@@ -252,4 +265,76 @@ Yeah, the transition matrix also showcase a lot of insights but for now I am gon
 
 </details>
 
+### xT Heatmaps after N moves — Defensive Perspective
+
+![xT1 Heatmap](images/xt_1.png)
+![xT3 Heatmap](images/xt_3.png)
+![xT5 Heatmap](images/xt_5.png)
+![xT7 Heatmap](images/xt_7.png)
+![xT10 Heatmap](images/xt_10.png)
+
+<details>
+<summary><strong>Click to expand analysis</strong></summary>
+
+- This heatmap displays the **Expected Threat (xT)** values for each zone on the pitch, calculated from opponents’ actions against U Cluj across the entire season.
+- Each number represents the **probability that possession in that zone will eventually lead to a goal**, either through a direct shot or by progressing into a more dangerous area.
+- The **darker the color**, the higher the danger: opponents who control the ball in those areas are statistically more likely to create a scoring chance.
+
+**Key Observations for xT after 10 moves**
+
+- **Right Edge of the Box = Hotspot**  
+  The highest xT values (0.47, 0.28, 0.21) cluster on the **right side of U Cluj’s defensive box**. This confirms earlier insights from the shot and goal maps: the opponent’s right-sided spearhead consistently drives attacks into this corridor, generating both volume and high-quality chances.
+
+- **Central Danger**  
+  Just inside the penalty area, the xT remains elevated (0.21). This is expected since central zones in front of goal are always dangerous, but in U Cluj’s case, the risk is amplified by opponent transitions that cut inside from the right wing.
+
+- **Flank Progression Patterns**  
+  Lower values (0.01–0.05) dominate most of the pitch, but there’s a clear buildup along the **right flank**. This reflects how opponents gradually progress from wide zones into U Cluj’s defensive third, where the threat escalates sharply.
+
+- **Low Threat Elsewhere**  
+  The left side of U Cluj’s defense shows significantly lower xT. Shots did come from there, but overall the generated danger is much smaller compared to the right side.
+
+</details>
+
 ## Vision for the Future
+
+To wrap up this MVP, I want to take a step back and reflect on where I see this project going next. Some of these ideas I might try myself, others I’d love to explore together with other participants from FRF.
+
+From the very beginning of the bootcamp, the main goal was to structure projects into modular steps:
+
+- idea / business context
+- data engineering
+- data analysis
+- visualization
+- live demo (GUI)
+
+I kind of rushed through those phases to get a working MVP fast (that was my mantra 😅), but for the next stage I’d like to really break it down properly and polish each part.
+
+Here’s what I have in mind:
+
+- **Modularized Workflow**  
+  Split the notebook into cleaner parts: data engineering → analysis → visualization. This would make it easier to maintain, extend, and collaborate on, instead of everything being crammed into one place.
+
+- **Shot Quality & Danger Calibration**  
+  Add **xG** and **post-shot xG** so it’s not just about _where_ shots happen, but also _how dangerous_ they actually are. That would tie the xT buildup more directly to real outcomes.
+
+- **Set-Piece / Fixed Phase Analysis**  
+  Some outliers in the shot and goal maps clearly came from **set-pieces or fouls**. A logical next step would be to isolate and study these phases separately. That could uncover recurring vulnerabilities (e.g., defending free-kicks or second balls), which the current MVP only hints at.
+
+- **Defensive Action Mapping**  
+  Right now I only looked at opponent actions. A natural extension would be to map U Cluj’s defensive actions (duels, interceptions, clearances) and see how they line up against high-xT zones. That could reveal if problems are about positioning, pressure, or reactions.
+
+- **Expanded xT Model Variables**  
+  Add more context like pass length, direction, game state, or player roles. That would allow more detailed “xT added” metrics per action and move beyond the very basic setup.
+
+- **Opponent Profiling**  
+  Extend the player-level xT attribution into role-based profiles (wingers, strikers, midfielders). This way, coaches could see not just which player is dangerous, but _how_ different types of players exploit different zones.
+
+- **Predictive Systems (the dream path)**  
+  Long term, I’d love to move from just describing what happened to actually predicting what’s likely to happen next. For example, flagging possessions as “likely dangerous” before they even hit the final third. That’s very much inspired by the _Soccermatics_ philosophy and could be a game-changer down the road.
+
+---
+
+👉 So yeah, this MVP was the starting point. The foundation is here, the first insights are here, but the fun part is that the road ahead is wide open for improvements, experiments, and maybe even some real-world impact.
+
+Thanks for reading! Peace!
