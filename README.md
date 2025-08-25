@@ -188,6 +188,8 @@ Frequencies were turned into probabilities, the **transition matrix** was built,
 
 ## GUI for MVP
 
+[See the demo of GUI](https://www.linkedin.com/feed/update/urn:li:activity:7364723994991693824)
+
 To make the MVP more practical, I wrapped the whole workflow in a small **Flask application**.  
 The idea was simple: instead of running cells in a notebook, you can interact with the results directly in a browser.
 
